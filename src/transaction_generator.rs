@@ -1,15 +1,15 @@
+use rand::Rng;
+use std::{
+    fs::read_to_string,
+    io::{Error, ErrorKind},
+};
+use serde_json::{json, Map, Value};
 use ethers::{
     core::k256::ecdsa::SigningKey,
     prelude::{rand as ethers_rand, LocalWallet, Signer},
     signers::Wallet,
     types::Address,
     utils::{hex, keccak256},
-};
-use rand::Rng;
-use serde_json::{json, Map, Value};
-use std::{
-    fs::read_to_string,
-    io::{Error, ErrorKind},
 };
 
 const DEFAULT_BALANCE_HEX: &str = "0x056bc75e2d63100000";
@@ -44,7 +44,7 @@ impl ToHex for Wallet<SigningKey> {
 }
 
 fn random_near(num: u64, rng: &mut rand::rngs::ThreadRng) -> u64 {
-    let random_small = ((rng.gen_range(0..num) * num) as f64).sqrt();
+    let random_small = ((rng.random_range(0..num) * num) as f64).sqrt();
     num - 1 - random_small as u64
 }
 
@@ -89,7 +89,7 @@ impl TransactionGenerator {
     pub fn new() -> Self {
         Self {
             ethers_rng: ethers_rand::thread_rng(),
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             pre: Map::new(),
             transactions: Vec::new(),
         }
@@ -358,8 +358,8 @@ impl TransactionGenerator {
         let mut receivers_num = 3;
 
         for _ in 3..num_transactions {
-            if self.rng.gen::<f64>() < conflict_rate {
-                let random_pattern = self.rng.gen::<f64>();
+            if self.rng.random::<f64>() < conflict_rate {
+                let random_pattern = self.rng.random::<f64>();
                 let selected_sender = random_near(senders_num, &mut self.rng);
                 let selected_receiver = random_near(receivers_num, &mut self.rng);
                 if random_pattern < 0.33 {
