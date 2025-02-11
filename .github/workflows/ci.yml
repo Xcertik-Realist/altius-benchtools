@@ -21,3 +21,8 @@ jobs:
     
     - name: Build
       run: cargo build --verbose 
+
+    - name: Generate many-to-many transactions
+      run: |
+        cargo build --release
+        ./target/release/generate pattern -y m2m -t 100 -c 0.6 -o ./test.json

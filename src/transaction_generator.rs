@@ -1,9 +1,4 @@
-use rand::Rng;
-use std::{
-    fs::read_to_string,
-    io::{Error, ErrorKind},
-};
-use serde_json::{json, Map, Value};
+use crate::constants::ERC20_USDC_DEPLOYED_BYTECODE;
 use ethers::{
     core::k256::ecdsa::SigningKey,
     prelude::{rand as ethers_rand, LocalWallet, Signer},
@@ -11,6 +6,9 @@ use ethers::{
     types::Address,
     utils::{hex, keccak256},
 };
+use rand::Rng;
+use serde_json::{json, Map, Value};
+use std::io::{Error, ErrorKind};
 
 const DEFAULT_BALANCE_HEX: &str = "0x056bc75e2d63100000";
 const DEFAULT_BALANCE: u128 = 100 * ONE_ETHER;
@@ -123,7 +121,7 @@ impl TransactionGenerator {
     }
 
     fn deploy_erc20(&mut self) -> Result<Address, Error> {
-        let bytecode = read_to_string("./contract/erc20-usdc-deployed.bytecode").unwrap();
+        let bytecode = ERC20_USDC_DEPLOYED_BYTECODE.to_string();
         let contract_address = Address::from_slice(&[
             179, 13, 249, 43, 177, 7, 230, 241, 228, 111, 125, 244, 253, 49, 163, 22, 206, 180,
             231, 217,
