@@ -2,6 +2,13 @@
 name = "altius-benchtools"
 version = "0.1.0"
 edition = "2021"
+description = "A high-performance profiler for tracing RPC server execution"
+license = "MIT OR Apache-2.0" 
+authors = ["HarryGremlins <importwyf@altiuslabs.xyz>"]
+repository = "https://github.com/Altius-Labs/altius-benchtools"
+readme = "README.md"
+keywords = ["profiler", "tracing", "benchmark", "revm", "altius"]
+categories = ["development-tools::profiling"]
 
 [features]
 default = ["profiler"]
