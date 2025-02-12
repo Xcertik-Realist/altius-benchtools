@@ -1,6 +1,8 @@
 # Altius Benchtools
 
-This is a collection of tools for Altius benchmarking, featuring a `profiler` for RPC server execution tracing and a `transaction generator` for Ethereum test cases.
+This is a collection of tools for Altius benchmarking, featuring a `profiler` for RPC server execution tracing and a `transaction_generator` for Ethereum test cases.
+
+<br>
 
 ## 1. Profiler
 
@@ -111,11 +113,13 @@ An example of the output JSON is as follows:
       "tx": "125",
       "type": "transaction"
     },
-    // ...
-  ], 
-  // ...
+    { "...": "..." }
+  ],
+  [ "..." ]
 }
 ```
+
+<br>
 
 ## 2. Transaction Generator
 
@@ -126,7 +130,9 @@ This tool generates a JSON file containing a list of transactions and a pre-stat
 1. Run `cargo build --release` to build the project.
 2. Run `./target/release/generate --help` to see the available options.
 
-#### ETH-transfer
+### ETH-transfer Usage
+
+After building the project, you can use the following commands to generate test cases.
 
 - Generate a JSON file with 100 ETH-transfer transactions in 10 groups, using the `one-to-many` pattern, and save it to `./test-case.json`.
   ```bash
@@ -151,7 +157,7 @@ This tool generates a JSON file containing a list of transactions and a pre-stat
   ./target/release/generate pattern -y many-to-many -t 100 -c 0.6 -o ./test-case.json
   ```
 
-#### ERC20-transfer
+### ERC20-transfer Usage
 
 Directly use the `erc20` flag to generate ERC20-transfer transactions. Other options are the same as ETH-transfer.
 
@@ -163,3 +169,60 @@ Directly use the `erc20` flag to generate ERC20-transfer transactions. Other opt
   ```
 
 - Other options are the same as ETH-transfer.
+
+### Output Format
+
+The output JSON file is a list of transactions and a pre-state of the blockchain.
+
+An example of the output JSON is as follows:
+```json
+{
+  "just-test": {
+    "_info": { "...": "..." },
+    "env": { "...": "..." },
+    "post": {
+      "Cancun": { "...": "..." }
+    },
+    "pre": {
+      "0xcc2564c36a3440e7d6dd4c67b50f885edbfa5141": {
+        "balance": "0x056bc75e2d63100000",
+        "code": "0x",
+        "nonce": "0x00",
+        "storage": {}
+      }
+    },
+    "transaction": [
+      {
+        "data": "0x",
+        "gasLimit": "0x0f4240",
+        "gasPrice": "0x0a",
+        "nonce": "0x00",
+        "secretKey": "0xa119adadef6246ab1780711938aa3b73f86ca408fc2fbbb2fa69135e3ae65c72",
+        "sender": "0xcc2564c36a3440e7d6dd4c67b50f885edbfa5141",
+        "to": "0xfa3d1fa8d995c05e9fbea98b0f2242391c738625",
+        "value": "0x02b5e3af16b1880000"
+      },
+      {
+        "data": "0x",
+        "gasLimit": "0x0f4240",
+        "gasPrice": "0x0a",
+        "nonce": "0x00",
+        "secretKey": "0x5d5baf05f2df8d5974daae1ff6848fceff6f4b0b781df360b8a0d6f9b68f96c6",
+        "sender": "0xfa3d1fa8d995c05e9fbea98b0f2242391c738625",
+        "to": "0x3d8b1f10cda76db2f9f5132b8250786bd4fd1f7a",
+        "value": "0x02b5e3a5fe63156000"
+      },
+      {
+        "data": "0x",
+        "gasLimit": "0x0f4240",
+        "gasPrice": "0x0a",
+        "nonce": "0x00",
+        "secretKey": "0x0d87dd2aba604787e47bd5ae0233c16db952478fa08eb77d373b1fc807c0ee11",
+        "sender": "0x3d8b1f10cda76db2f9f5132b8250786bd4fd1f7a",
+        "to": "0xa6a410156ec7b055ac4b5f89a812944bf47ad6de",
+        "value": "0x02b5e39ce614a2c000"
+      }
+    ]
+  }
+}
+```
