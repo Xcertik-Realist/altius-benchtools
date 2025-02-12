@@ -123,9 +123,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .action(clap::ArgAction::SetTrue)))
         .after_help("Examples:\n\
                      Generate 50 transactions in a chained pattern:\n\
-                     $ ethereum-tx-gen pattern -y chained -t 50\n\n\
+                     $ ./target/release/generate pattern -y chained -t 50\n\n\
                      Specify output file:\n\
-                     $ ethereum-tx-gen pattern -y chained -t 50 -o ./my_test_case.json")
+                     $ ./target/release/generate pattern -y chained -t 50 -o ./my_test_case.json")
         .get_matches();
 
     let (pre, transactions) = match matches.subcommand() {
