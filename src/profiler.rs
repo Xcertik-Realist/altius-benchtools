@@ -1,4 +1,93 @@
-//! Profiler for tracing the execution of the RPC server.
+//! A high-performance profiler for tracing RPC server execution with multi-threaded support.
+//! 
+//! # Overview
+//! 
+//! The profiler module provides a comprehensive solution for tracing and profiling RPC server execution,
+//! with support for multi-threaded environments, detailed event tracking, and flexible output formats.
+//! 
+//! # Features
+//! 
+//! - Task timing with precise start/end markers
+//! - Thread-safe profiling in concurrent environments
+//! - Rich event annotation system
+//! - Multiple output formats (JSON, ZIP)
+//! - Special handling for transaction and commit events
+//! - Global singleton instance with thread-safe access
+//! 
+//! # Examples
+//! 
+//! ```rust
+//! use altius_benchtools::profiler;
+//! 
+//! // Start timing a task
+//! profiler::start("my_task");
+//! 
+//! // Add notes to the current task
+//! profiler::note_str("my_task", "operation", "database_query");
+//! profiler::note_str("my_task", "query_type", "SELECT");
+//! 
+//! // Record timing points
+//! profiler::note_time("my_task", "query_start");
+//! 
+//! // End timing the task
+//! profiler::end("my_task");
+//! 
+//! // Export results
+//! profiler::dump_json("profile_output.json");
+//! ```
+//! 
+//! # Multi-threaded Usage
+//! 
+//! The profiler is thread-safe and can be used across multiple threads:
+//! 
+//! ```rust
+//! use std::thread;
+//! use altius_benchtools::profiler;
+//! 
+//! let handle = thread::spawn(|| {
+//!     profiler::start("worker_task");
+//!     profiler::note_str("worker_task", "thread_info", "worker_1");
+//!     // ... perform work ...
+//!     profiler::end("worker_task");
+//! });
+//! ```
+//! 
+//! # Output Format
+//! 
+//! The profiler generates a structured JSON output containing:
+//! 
+//! - Task timing information (start time, duration)
+//! - Thread identification
+//! - Custom annotations and notes
+//! - Special event types (transactions, commits)
+//! 
+//! Example output structure:
+//! ```json
+//! {
+//!   "title": {},
+//!   "details": [
+//!     [
+//!       {
+//!         "type": "transaction",
+//!         "tx": "task_name",
+//!         "runtime": 1234567,
+//!         "start": 1000000,
+//!         "end": 2234567,
+//!         "status": "success",
+//!         "detail": {
+//!           "operation": "database_query",
+//!           "query_type": "SELECT"
+//!         }
+//!       }
+//!     ]
+//!   ]
+//! }
+//! ```
+//! 
+//! # Note on Thread Safety
+//! 
+//! The profiler uses a global singleton instance protected by a mutex to ensure thread safety.
+//! All operations are atomic and can be safely performed from any thread.
 
 use once_cell::sync::Lazy;
 use serde_json::{json, Map, Value};
@@ -130,14 +219,43 @@ impl Profiler {
     }
 }
 
-/// Gets the genesis time when the profiler was initialized
+/// Returns the genesis time when the profiler was initialized.
+/// 
+/// This timestamp serves as the reference point for all timing measurements
+/// in the profiler. All durations are calculated relative to this time.
+/// 
+/// # Returns
+/// 
+/// * `Instant` - The initialization timestamp of the profiler
 pub fn get_genesis() -> Instant {
     let profiler = Profiler::global().lock().unwrap();
     profiler.genesis
 }
 
-/// Starts timing a new task in the current thread
-/// Panics if the last event for this task is not ended
+/// Starts timing a new task in the current thread.
+/// 
+/// This function begins tracking a new task's execution time. Each task must be ended
+/// with a corresponding call to [`end()`]. Multiple tasks can be tracked simultaneously,
+/// but nested tasks of the same name are not supported.
+/// 
+/// # Arguments
+/// 
+/// * `task` - A string identifier for the task to be timed
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event for this task name is not ended (i.e., if you try to start
+///   a task that was already started but not ended)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// profiler::start("database_query");
+/// // ... perform database operation ...
+/// profiler::end("database_query");
+/// ```
 pub fn start(task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let genesis = profiler.genesis;
@@ -155,8 +273,39 @@ pub fn start(task: &str) {
     ));
 }
 
-/// Starts timing a new task that may be called multiple times with the same name
-/// Only works in the main thread
+/// Starts timing a new task that may be called multiple times with the same name.
+/// 
+/// This function is specifically designed for tasks that need to be executed multiple times
+/// with the same base name. It automatically appends an index to the task name to differentiate
+/// between multiple instances.
+/// 
+/// # Arguments
+/// 
+/// * `base_task` - The base name for the task. The actual task name will be `{base_task}-[{index}]`
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event for this task name is not ended
+/// 
+/// # Thread Safety
+/// 
+/// * This function only works in the main thread
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // First instance
+/// profiler::start_multi("batch_process");
+/// // ... process batch 1 ...
+/// profiler::end_multi("batch_process");
+/// 
+/// // Second instance
+/// profiler::start_multi("batch_process");
+/// // ... process batch 2 ...
+/// profiler::end_multi("batch_process");
+/// ```
 pub fn start_multi(base_task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let genesis = profiler.genesis;
@@ -189,8 +338,29 @@ pub fn start_multi(base_task: &str) {
     ));
 }
 
-/// Ends timing for a task in the current thread
-/// Panics if the last event for this task was not started
+/// Ends timing for a task in the current thread.
+/// 
+/// This function stops tracking a task's execution time and records its duration.
+/// It must be called after a corresponding [`start()`] call for the same task.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to end
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event for this task was not started (i.e., if you try to end
+///   a task that wasn't started)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// profiler::start("api_request");
+/// // ... perform API request ...
+/// profiler::end("api_request");
+/// ```
 pub fn end(task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     assert!(
@@ -201,8 +371,39 @@ pub fn end(task: &str) {
         Some(Instant::now().duration_since(profiler.genesis).as_nanos());
 }
 
-/// Ends timing for a task that was called multiple times
-/// Only works in the main thread
+/// Ends timing for a task that was called multiple times.
+/// 
+/// This function ends timing for a task started with [`start_multi()`]. It must be called
+/// after a corresponding start_multi call with the same base task name.
+/// 
+/// # Arguments
+/// 
+/// * `base_task` - The base name of the task to end (same as used in start_multi)
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event for this task was not started
+/// * Panics if called from a non-main thread
+/// 
+/// # Thread Safety
+/// 
+/// * This function only works in the main thread
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // First batch
+/// profiler::start_multi("batch_process");
+/// // ... process batch 1 ...
+/// profiler::end_multi("batch_process"); // Ends "batch_process-[0]"
+/// 
+/// // Second batch
+/// profiler::start_multi("batch_process");
+/// // ... process batch 2 ...
+/// profiler::end_multi("batch_process"); // Ends "batch_process-[1]"
+/// ```
 pub fn end_multi(base_task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let (count, is_ended) = profiler.multi_recorder.get_mut(base_task).unwrap();
@@ -217,8 +418,37 @@ pub fn end_multi(base_task: &str) {
         Some(Instant::now().duration_since(profiler.genesis).as_nanos());
 }
 
-/// Adds a key-value note to the last event of a task
-/// Panics if the last event was not started
+/// Adds a key-value note to the last event of a task.
+/// 
+/// This function allows you to annotate a task with additional metadata in the form
+/// of key-value pairs. The value can be any valid JSON value.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to annotate
+/// * `key` - The key for the metadata entry
+/// * `value` - The value to associate with the key (any valid JSON value)
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event was not started (i.e., if you try to add a note to
+///   a task that wasn't started or was already ended)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// use serde_json::json;
+/// 
+/// profiler::start("http_request");
+/// profiler::note("http_request", "method", json!("POST"));
+/// profiler::note("http_request", "headers", json!({
+///     "Content-Type": "application/json",
+///     "Authorization": "Bearer token"
+/// }));
+/// // ... perform request ...
+/// profiler::end("http_request");
+/// ```
 pub fn note(task: &str, key: &str, value: Value) {
     let mut profiler = Profiler::global().lock().unwrap();
     assert!(
@@ -233,12 +463,65 @@ pub fn note(task: &str, key: &str, value: Value) {
         .insert(key.to_string(), value);
 }
 
-/// Adds a string key-value note to the last event of a task
+/// Adds a string key-value note to the last event of a task.
+/// 
+/// This is a convenience wrapper around [`note()`] that automatically converts
+/// the string value to a JSON string value.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to annotate
+/// * `key` - The key for the metadata entry
+/// * `value` - The string value to associate with the key
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event was not started
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// profiler::start("request");
+/// profiler::note_str("request", "endpoint", "/api/v1/users");
+/// profiler::note_str("request", "method", "GET");
+/// // ... perform request ...
+/// profiler::end("request");
+/// ```
 pub fn note_str(task: &str, key: &str, value: &str) {
     note(task, key, Value::String(value.to_string()));
 }
 
-/// Adds multiple key-value notes to the last event of a task
+/// Adds multiple key-value notes to the last event of a task.
+/// 
+/// This function allows you to add multiple annotations at once by providing
+/// a map of key-value pairs.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to annotate
+/// * `description` - A mutable map containing the key-value pairs to add
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event was not started
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// use serde_json::{Map, Value, json};
+/// 
+/// profiler::start("query");
+/// let mut desc = Map::new();
+/// desc.insert("table".to_string(), json!("users"));
+/// desc.insert("type".to_string(), json!("SELECT"));
+/// desc.insert("filter".to_string(), json!({"age": ">= 18"}));
+/// profiler::notes("query", &mut desc);
+/// // ... perform query ...
+/// profiler::end("query");
+/// ```
 pub fn notes(task: &str, description: &mut Map<String, Value>) {
     let mut profiler = Profiler::global().lock().unwrap();
     profiler
@@ -249,7 +532,33 @@ pub fn notes(task: &str, description: &mut Map<String, Value>) {
         .append(description);
 }
 
-/// Adds the current time as a value for a key in the last event of a task
+/// Adds the current time as a value for a key in the last event of a task.
+/// 
+/// This function records the current timestamp relative to the profiler's genesis time
+/// and adds it as a note to the task.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to annotate
+/// * `key` - The key under which to store the timestamp
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event was not started
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// profiler::start("long_operation");
+/// // ... initial setup ...
+/// profiler::note_time("long_operation", "setup_complete");
+/// // ... main work ...
+/// profiler::note_time("long_operation", "work_complete");
+/// // ... cleanup ...
+/// profiler::end("long_operation");
+/// ```
 pub fn note_time(task: &str, key: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let genesis = profiler.genesis;
@@ -268,8 +577,37 @@ pub fn note_time(task: &str, key: &str) {
         );
 }
 
-/// Adds a string key-value note to the last event of a task that was called multiple times
-/// Only works in the main thread
+/// Adds a string key-value note to the last event of a task that was called multiple times.
+/// 
+/// This function adds a string note to a task created with [`start_multi()`]. It must be used
+/// with the base task name (without the index suffix).
+/// 
+/// # Arguments
+/// 
+/// * `base_task` - The base name of the task (same as used in start_multi)
+/// * `key` - The key for the metadata entry
+/// * `value` - The string value to associate with the key
+/// 
+/// # Panics
+/// 
+/// * Panics if the last event was not started
+/// * Panics if called from a non-main thread
+/// 
+/// # Thread Safety
+/// 
+/// * This function only works in the main thread
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// profiler::start_multi("batch_job");
+/// profiler::note_str_multi("batch_job", "status", "processing");
+/// // ... process batch ...
+/// profiler::note_str_multi("batch_job", "status", "completed");
+/// profiler::end_multi("batch_job");
+/// ```
 pub fn note_str_multi(base_task: &str, key: &str, value: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let (count, is_ended) = profiler.multi_recorder.get_mut(base_task).unwrap();
@@ -287,6 +625,32 @@ pub fn note_str_multi(base_task: &str, key: &str, value: &str) {
         .insert(key.to_string(), Value::String(value.to_string()));
 }
 
+/// Adds a string key-value note to a task without the usual safety checks.
+/// 
+/// This is an unchecked version of [`note_str()`] that will create a new task entry
+/// if one doesn't exist. Use with caution as it bypasses the normal start/end task flow.
+/// 
+/// # Arguments
+/// 
+/// * `task` - The string identifier of the task to annotate
+/// * `key` - The key for the metadata entry
+/// * `value` - The string value to associate with the key
+/// 
+/// # Safety
+/// 
+/// This function is marked as unchecked because it:
+/// - Does not verify if the task exists
+/// - Creates a new task entry if none exists
+/// - Does not enforce the normal start/end task flow
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // Note: This bypasses normal task flow - use with caution
+/// profiler::note_str_unchecked("background_task", "status", "running");
+/// ```
 pub fn note_str_unchecked(task: &str, key: &str, value: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let genesis = profiler.genesis;
@@ -306,13 +670,66 @@ pub fn note_str_unchecked(task: &str, key: &str, value: &str) {
         .insert(key.to_string(), Value::String(value.to_string()));
 }
 
-/// Clears all profiling data
+/// Clears all profiling data from the profiler.
+/// 
+/// This function removes all recorded tasks, events, and their associated metadata
+/// from the profiler. The genesis time is preserved.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // After some profiling...
+/// profiler::clear(); // Reset profiler state
+/// ```
 pub fn clear() {
     let mut profiler = Profiler::global().lock().unwrap();
     profiler.clear();
 }
 
-/// Dumps the profiler data as a JSON string
+/// Dumps the profiler data as a JSON string.
+/// 
+/// This function exports all profiling data in a structured JSON format. The output
+/// includes timing information, thread identification, custom annotations, and special
+/// event types (transactions, commits).
+/// 
+/// # Returns
+/// 
+/// * `String` - A pretty-printed JSON string containing all profiling data
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // ... perform profiling ...
+/// 
+/// let json_data = profiler::dump();
+/// println!("Profile data: {}", json_data);
+/// ```
+/// 
+/// # Output Format
+/// 
+/// The output JSON has the following structure:
+/// ```json
+/// {
+///   "title": {},
+///   "details": [
+///     [
+///       {
+///         "type": "transaction",
+///         "tx": "task_name",
+///         "runtime": 1234567,
+///         "start": 1000000,
+///         "end": 2234567,
+///         "status": "success",
+///         "detail": { ... }
+///       }
+///     ]
+///   ]
+/// }
+/// ```
 pub fn dump() -> String {
     let profiler = Profiler::global().lock().unwrap();
     let now = Instant::now().duration_since(profiler.genesis).as_nanos();
@@ -385,14 +802,56 @@ pub fn dump() -> String {
     serde_json::to_string_pretty(&output_frontend).unwrap()
 }
 
-/// Dumps the profiler data to a JSON file at the specified path
+/// Dumps the profiler data to a JSON file at the specified path.
+/// 
+/// This function writes all profiling data to a file in a pretty-printed JSON format.
+/// It's a convenience wrapper around [`dump()`] that handles file I/O.
+/// 
+/// # Arguments
+/// 
+/// * `output_path` - The path where the JSON file should be written
+/// 
+/// # Panics
+/// 
+/// * Panics if the file cannot be created or written to
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // After some profiling...
+/// profiler::dump_json("profile_results.json");
+/// ```
 pub fn dump_json(output_path: &str) {
     let result_json = dump();
     let mut file = File::create(output_path).unwrap();
     file.write_all(result_json.as_bytes()).unwrap();
 }
 
-/// Dumps the profiler data to a ZIP file containing a JSON file
+/// Dumps the profiler data to a ZIP file containing a JSON file.
+/// 
+/// This function exports all profiling data to a compressed ZIP file containing
+/// a JSON file. The ZIP file will contain a single JSON file with the same base name.
+/// This is useful for storing large profiling datasets efficiently.
+/// 
+/// # Arguments
+/// 
+/// * `output_name` - The base name for the output files (without extension)
+/// 
+/// # Panics
+/// 
+/// * Panics if the ZIP file cannot be created or written to
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // After some profiling...
+/// profiler::dump_zip("profile_results");
+/// // Creates profile_results.zip containing profile_results.json
+/// ```
 pub fn dump_zip(output_name: &str) {
     let result_json = dump();
     let file = File::create(output_name.to_string() + ".zip").unwrap();
@@ -404,7 +863,19 @@ pub fn dump_zip(output_name: &str) {
     zip.finish().unwrap();
 }
 
-/// Prints the current state of the profiler for debugging
+/// Prints the current state of the profiler for debugging purposes.
+/// 
+/// This function prints a debug representation of the entire profiler state
+/// to stdout. This is primarily intended for development and debugging use.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use altius_benchtools::profiler;
+/// 
+/// // After some profiling...
+/// profiler::debug_print(); // Prints internal profiler state
+/// ```
 pub fn debug_print() {
     println!("Profiler: {:?}", PROFILER);
 }
