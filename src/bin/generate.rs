@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 use serde_json::{json, Map, Value};
 use std::{fs::File, io::Write};
-use transaction_generator::TransactionGenerator;
+use altius_benchtools::TransactionGenerator;
 
 pub fn build_json_output(
     pre: Map<String, Value>,

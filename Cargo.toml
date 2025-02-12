@@ -1,5 +1,5 @@
 [package]
-name = "altius-benchtool"
+name = "altius-benchtools"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,7 +13,7 @@ ethers = "2.0"
 tokio = { version = "1.28", features = ["full"] }
 
 [lib]
-name = "transaction_generator"
+name = "altius_benchtools"
 path = "src/lib.rs"
 
 [[bin]]
