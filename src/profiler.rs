@@ -105,15 +105,15 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 static PROFILER: Lazy<Mutex<Profiler>> = Lazy::new(|| {
     Mutex::new(Profiler {
         genesis: Instant::now(),
-        raw_events: HashMap::new(),
-        multi_recorder: HashMap::new(),
+        thread_tasks: HashMap::new(),
+        global_tasks: HashMap::new(),
     })
 });
 
 #[derive(Debug)]
 struct Profiler {
     genesis: Instant,
-    raw_events: HashMap<
+    thread_tasks: HashMap<
         String, // thread id
         HashMap<
             String, // task name
@@ -124,7 +124,7 @@ struct Profiler {
             )>,
         >,
     >,
-    multi_recorder: HashMap<
+    global_tasks: HashMap<
         String,       // task name
         (u128, bool), // occurrence count & is ended
     >,
@@ -145,9 +145,9 @@ impl Profiler {
     /// Inserts a new thread into the profiler if it doesn't exist
     /// Returns true if the thread was newly inserted, false if it already existed
     fn insert_thread(&mut self, thread: &str) -> bool {
-        let non_exist = !self.raw_events.contains_key(thread);
+        let non_exist = !self.thread_tasks.contains_key(thread);
         if non_exist {
-            self.raw_events.insert(thread.to_string(), HashMap::new());
+            self.thread_tasks.insert(thread.to_string(), HashMap::new());
         }
         non_exist
     }
@@ -156,10 +156,10 @@ impl Profiler {
     /// Returns true if the task was newly inserted, false if it already existed
     fn insert_thread_task(&mut self, task: &str, thread: &str) -> bool {
         self.insert_thread(thread);
-        let raw_events = self.raw_events.get_mut(thread).unwrap();
-        let non_exist = !raw_events.contains_key(task);
+        let thread_tasks = self.thread_tasks.get_mut(thread).unwrap();
+        let non_exist = !thread_tasks.contains_key(task);
         if non_exist {
-            raw_events.insert(task.to_string(), vec![]);
+            thread_tasks.insert(task.to_string(), vec![]);
         }
         non_exist
     }
@@ -173,13 +173,13 @@ impl Profiler {
     /// Gets a reference to the events vector for a specific task and thread
     /// Panics if either the thread or task don't exist
     fn must_get(&self, task: &str, thread: &str) -> &Vec<(u128, Option<u128>, Map<String, Value>)> {
-        self.raw_events.get(thread).unwrap().get(task).unwrap()
+        self.thread_tasks.get(thread).unwrap().get(task).unwrap()
     }
 
     /// Gets a reference to the events vector for a specific task in the current thread
     /// Panics if either the thread or task don't exist
     fn must_get_current(&self, task: &str) -> &Vec<(u128, Option<u128>, Map<String, Value>)> {
-        self.raw_events
+        self.thread_tasks
             .get(&Profiler::get_current_thread_name())
             .unwrap()
             .get(task)
@@ -193,7 +193,7 @@ impl Profiler {
         task: &str,
         thread: &str,
     ) -> &mut Vec<(u128, Option<u128>, Map<String, Value>)> {
-        self.raw_events
+        self.thread_tasks
             .get_mut(thread)
             .unwrap()
             .get_mut(task)
@@ -206,7 +206,7 @@ impl Profiler {
         &mut self,
         task: &str,
     ) -> &mut Vec<(u128, Option<u128>, Map<String, Value>)> {
-        self.raw_events
+        self.thread_tasks
             .get_mut(&Profiler::get_current_thread_name())
             .unwrap()
             .get_mut(task)
@@ -215,7 +215,7 @@ impl Profiler {
 
     /// Clears all profiling data from the profiler
     fn clear(&mut self) {
-        self.raw_events.clear();
+        self.thread_tasks.clear();
     }
 }
 
@@ -309,10 +309,10 @@ pub fn start(task: &str) {
 pub fn start_multi(base_task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
     let genesis = profiler.genesis;
-    let count = match profiler.multi_recorder.get_mut(base_task) {
+    let count = match profiler.global_tasks.get_mut(base_task) {
         None => {
             profiler
-                .multi_recorder
+                .global_tasks
                 .insert(base_task.to_string(), (1, false));
             0
         }
@@ -406,7 +406,7 @@ pub fn end(task: &str) {
 /// ```
 pub fn end_multi(base_task: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
-    let (count, is_ended) = profiler.multi_recorder.get_mut(base_task).unwrap();
+    let (count, is_ended) = profiler.global_tasks.get_mut(base_task).unwrap();
     assert!(!*is_ended, "the last event must not be end");
     *is_ended = true;
     let task = &format!("{}-[{}]", base_task, *count - 1);
@@ -610,7 +610,7 @@ pub fn note_time(task: &str, key: &str) {
 /// ```
 pub fn note_str_multi(base_task: &str, key: &str, value: &str) {
     let mut profiler = Profiler::global().lock().unwrap();
-    let (count, is_ended) = profiler.multi_recorder.get_mut(base_task).unwrap();
+    let (count, is_ended) = profiler.global_tasks.get_mut(base_task).unwrap();
     assert!(!*is_ended, "the last event must not be end");
     let task = &format!("{}-[{}]", base_task, *count - 1);
     assert!(
@@ -734,14 +734,12 @@ pub fn dump() -> String {
     let profiler = Profiler::global().lock().unwrap();
     let now = Instant::now().duration_since(profiler.genesis).as_nanos();
 
-    let mut output_frontend: Map<String, Value> = Map::new();
-    output_frontend.insert("title".into(), Value::Object(Map::new()));
-    output_frontend.insert("details".into(), Value::Array(vec![]));
+    let mut output_frontend = Value::Array(vec![]);
 
-    for (_thread_name, thread_events) in &profiler.raw_events {
+    for (_thread_name, thread_events) in &profiler.thread_tasks {
         let mut detail = vec![];
-        for (name, raw_events) in thread_events {
-            for event in raw_events {
+        for (name, thread_tasks) in thread_events {
+            for event in thread_tasks {
                 let (start, end_opt, description) = event;
                 let duration = end_opt.unwrap_or(now) - start;
 
@@ -792,8 +790,6 @@ pub fn dump() -> String {
             }
         }
         output_frontend
-            .get_mut("details")
-            .unwrap()
             .as_array_mut()
             .unwrap()
             .push(Value::Array(detail));
