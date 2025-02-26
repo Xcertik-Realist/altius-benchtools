@@ -2,4 +2,5 @@
 /target
 /scripts/bytecode
 /tests/*.json
+/outputs
 .DS_Store
