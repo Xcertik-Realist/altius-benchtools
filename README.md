@@ -2,6 +2,8 @@
 
 This is a collection of tools for Altius benchmarking, featuring a `profiler` for RPC server execution tracing and a `transaction_generator` for Ethereum test cases.
 
+> **Tip:** Start by running the example in `examples/how_to_use_profiler.rs` to see the profiler in action and understand its different usage patterns.
+
 <br>
 
 ## 1. Profiler
@@ -226,3 +228,39 @@ An example of the output JSON is as follows:
   }
 }
 ```
+
+<br>
+
+## How To Contribute
+
+We welcome contributions to the Altius Benchtools project! Here's how you can contribute:
+
+### Reporting Issues
+
+If you encounter any bugs or have feature requests:
+
+1. Check the [Issues](https://github.com/anz-devin/toolbench/issues) page to see if your issue has already been reported.
+2. If not, create a new issue with a clear description and steps to reproduce.
+
+### Contributing Code
+
+1. Fork the repository on GitHub.
+2. Clone your fork locally: `git clone https://github.com/YOUR-USERNAME/toolbench.git`
+3. Create a new branch for your feature or bugfix: `git checkout -b feature/your-feature-name`
+4. Make your changes, ensuring you follow the code style of the project.
+5. Run tests and linting to ensure your changes don't break existing functionality:
+   ```bash
+   cargo fmt
+   cargo clippy
+   ```
+6. Commit your changes with a descriptive commit message.
+7. Push your branch to your fork: `git push origin feature/your-feature-name`
+8. Create a Pull Request from your fork to the main repository.
+
+### Pull Request Guidelines
+
+- Never commit directly to the `develop` branch. All changes must go through pull requests.
+- Ensure your code is properly formatted with `cargo fmt`.
+- Make sure all linting checks pass with `cargo clippy`.
+- Write clear commit messages that explain the purpose of your changes.
+- Update documentation if your changes affect the public API or user-facing features.
