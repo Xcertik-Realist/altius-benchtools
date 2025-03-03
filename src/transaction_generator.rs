@@ -437,6 +437,63 @@ impl TransactionGenerator {
         Ok(())
     }
 
+    fn generate_pattern_s2s(
+        &mut self,
+        num_transactions: u128,
+        is_erc20: bool,
+    ) -> Result<(), Error> {
+        let erc20_address = if is_erc20 {
+            Some(self.deploy_erc20()?)
+        } else {
+            None
+        };
+
+        for _ in 0..num_transactions {
+            let account = LocalWallet::new(&mut self.ethers_rng);
+
+            self.pre.insert(
+                account.address().to_hex(),
+                json!({
+                    "balance": DEFAULT_BALANCE_HEX,
+                    "code": "0x",
+                    "nonce": "0x00",
+                    "storage": {}
+                }),
+            );
+
+            if is_erc20 {
+                add_erc20_balance_prestate(
+                    &mut self.pre,
+                    erc20_address.unwrap(),
+                    account.address(),
+                );
+                self.transactions.push(json!({
+                    "data": erc20_transfer(account.address(), 1 * ONE_ETHER),
+                    "gasLimit": "0x0f4240",
+                    "gasPrice": "0x0a",
+                    "nonce": "0x00",
+                    "secretKey": account.to_hex(),
+                    "sender": account.address().to_hex(),
+                    "to": erc20_address.unwrap().to_hex(),
+                    "value": "0x00",
+                }));
+            } else {
+                self.transactions.push(json!({
+                    "data": "0x",
+                    "gasLimit": "0x0f4240",
+                    "gasPrice": "0x0a",
+                    "nonce": "0x00",
+                    "secretKey": account.to_hex(),
+                    "sender": account.address().to_hex(),
+                    "to": account.address().to_hex(),
+                    "value": (1 * ONE_ETHER).to_hex(),
+                }));
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn generate_pattern_transactions(
         &mut self,
         pattern_type: &str,
@@ -458,12 +515,16 @@ impl TransactionGenerator {
             "many-to-one" | "m2o" => {
                 self.generate_pattern_m2o(num_transactions, num_groups, is_erc20)
             }
+            "self-to-self" | "s2s" => {
+                self.generate_pattern_s2s(num_transactions, is_erc20)
+            }
             _ => Err(Error::new(
                 ErrorKind::InvalidInput,
                 format!(
-                "Invalid pattern type. Available patterns are: 'many-to-many' (or 'm2m'), \
-                'chained' (or 'ring', 'chain'), 'one-to-many' (or 'o2m'), 'many-to-one' (or 'm2o')."
-            ),
+                    "Invalid pattern type. Available patterns are: 'many-to-many' (or 'm2m'), \
+                    'chained' (or 'ring', 'chain'), 'one-to-many' (or 'o2m'), 'many-to-one' (or 'm2o'), \
+                    'self-to-self' (or 's2s')."
+                ),
             )),
         }
     }

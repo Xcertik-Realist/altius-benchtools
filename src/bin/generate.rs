@@ -1,7 +1,7 @@
+use altius_benchtools::TransactionGenerator;
 use clap::{Arg, Command};
 use serde_json::{json, Map, Value};
 use std::{fs::File, io::Write};
-use altius_benchtools::TransactionGenerator;
 
 pub fn build_json_output(
     pre: Map<String, Value>,
@@ -88,13 +88,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                          - chained: Transactions form a circular pattern\n\
                          \t    o → o → o → o → o                      \n\
                          \t    ↑               ↓                      \n\
-                         \t    o ← o ← o ← o ← o                      \n\
+                         \t    o ← o ← o ← o ← o                      \n\n\
+                         - self-to-self: Accounts transfer to themselves\n\
+                         \t    o   o   o   o   o                      \n\
+                         \t    ↓   ↓   ↓   ↓   ↓                      \n\
+                         \t    o   o   o   o   o                      \n\
                          ")
             .arg(Arg::new("type")
                 .short('y')
                 .long("type")
                 .value_name("TYPE")
-                .help("Pattern type (one-to-many, many-to-many, many-to-one, chained)")
+                .help("Pattern type (one-to-many, many-to-many, many-to-one, chained, self-to-self)")
                 .required(true))
             .arg(Arg::new("num_transactions")
                 .short('t')
