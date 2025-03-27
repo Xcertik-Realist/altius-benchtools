@@ -1,6 +1,6 @@
 [package]
 name = "altius-benchtools"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "A high-performance profiler for tracing RPC server execution"
 license = "MIT OR Apache-2.0" 
@@ -19,7 +19,7 @@ generator = ["ethers", "tokio", "clap"]
 rand = "0.9"
 serde_json = "1.0"
 once_cell = { version = "1.18", optional = true }
-zip = { version = "2.2", optional = true }
+zip = { version = "2.5", optional = true }
 clap = { version = "4.5.20", optional = true }
 ethers = { version = "2.0", optional = true }
 tokio = { version = "1.28", features = ["full"], optional = true }

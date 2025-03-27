@@ -129,7 +129,7 @@ This tool generates a JSON file containing a list of transactions and a pre-stat
 
 ### Usage
 
-1. Run `cargo build --release` to build the project.
+1. Run `cargo build --release --features generator` to build the project.
 2. Run `./target/release/generate --help` to see the available options.
 
 ### ETH-transfer Usage
