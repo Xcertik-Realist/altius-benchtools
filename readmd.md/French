@@ -1,0 +1,139 @@
+Altius Benchtools
+Ceci est une collection d'outils pour l'évaluation des performances d'Altius, comprenant un profileur pour le suivi de l'exécution du serveur RPC et un générateur de transactions pour les cas de test Ethereum.
+Astuce : Commencez par exécuter l'exemple dans examples/how_to_use_profiler.rs pour voir le profileur en action et comprendre ses différents modèles d'utilisation.
+1. Profileur (Profiler)
+Un outil pour suivre et profiler l'exécution du serveur RPC avec des capacités détaillées de mesure du temps et de suivi des événements.
+Fonctionnalités
+Mesure du temps des tâches avec des marqueurs de début/fin
+
+Support du profilage multi-thread
+
+Annotation des événements avec des notes et descriptions
+
+Formats de sortie JSON et ZIP
+
+Traitement spécial pour les événements de transactions et de commits
+
+Utilisation
+
+// Démarrer la mesure du temps d'une tâche
+profiler::start("task_name");
+
+// ... votre code ici ...
+
+// Ajouter des notes à la tâche en cours
+profiler::note_str("task_name", "key", "value");
+
+// ... votre code ici ...
+
+// Terminer la mesure du temps d'une tâche
+profiler::end("task_name");
+
+// Exporter les résultats
+profiler::dump_json("output.json");
+// ou
+profiler::dump_zip("output");
+
+Utilisation multi-thread
+Le profileur prend en charge les opérations simultanées sur plusieurs threads :
+
+// Dans n'importe quel thread
+profiler::start_multi("thread_task");
+
+// ... votre code ici ...
+
+// Dans n'importe quel thread
+profiler::note_str_multi("thread_task", "thread_info", "worker_1");
+
+// ... votre code ici ...
+
+// Dans n'importe quel thread
+profiler::end_multi("thread_task");
+
+// ... votre code ici ...
+
+// Exporter les résultats
+profiler::dump_json("output.json");
+// ou
+profiler::dump_zip("output");
+
+Format de sortie
+Le profileur génère une structure JSON contenant :
+Informations de temporisation pour chaque tâche
+
+Identification des threads
+
+Annotations et notes personnalisées
+
+Détails des événements de transactions et de commits
+
+Exemple de sortie JSON :
+
+{
+  "details": [
+    {
+      "detail": {
+        "hash": "0x26b7c694ff75f0b4ee85b5ca2e3cc1c332b41a64982c2b454e0493497b8e76b9",
+        "type": "transaction"
+      },
+      "end": 212387237,
+      "runtime": 31286,
+      "start": 212355951,
+      "status": "success",
+      "tx": "125",
+      "type": "transaction"
+    },
+    // ...plus de contenu...
+  ],
+  [ "..." ]
+}
+
+2. Générateur de Transactions (Transaction Generator)
+Cet outil génère un fichier JSON contenant une liste de transactions et un état préalable de la blockchain.
+Utilisation
+Exécutez cargo build --release --features generator pour construire le projet.
+
+Exécutez ./target/release/generate --help pour voir les options disponibles.
+
+Utilisation pour les transferts ETH
+Après avoir construit le projet, vous pouvez utiliser les commandes suivantes pour générer des cas de test :
+Générer un fichier JSON avec 100 transactions de transfert ETH en 10 groupes, utilisant le modèle un-à-plusieurs, et le sauvegarder dans ./test-case.json :
+
+./target/release/generate pattern -y o2m -t 100 -g 10 -o ./test-case.json
+# ou
+./target/release/generate pattern -y one-to-many -t 100 -g 10 -o ./test-case.json
+
+Format de sortie
+Le fichier JSON de sortie est une liste de transactions et un état préalable de la blockchain. Exemple de JSON :
+
+{
+  "just-test": {
+    "_info": { "...": "..." },
+    "env": { "...": "..." },
+    "pre": {
+      "0xcc2564c36a3440e7d6dd4c67b50f885edbfa5141": {
+        "balance": "0x056bc75e2d63100000",
+        "code": "0x",
+        "nonce": "0x00",
+        "storage": {}
+      }
+    },
+    "transaction": [
+      // ...données des transactions...
+    ]
+  }
+}
+
+Comment contribuer
+Nous accueillons les contributions au projet Altius Benchtools ! Voici comment participer :
+Signaler des problèmes : Vérifiez la page Issues pour voir si votre problème a déjà été signalé ; sinon, créez un nouveau problème avec une description claire et des étapes pour le reproduire.
+
+Contribuer au code :
+Faites un fork du dépôt sur GitHub.
+
+Clonez votre fork localement : git clone https://github.com/YOUR-USERNAME/toolbench.git
+
+Créez une nouvelle branche : git checkout -b feature/your-feature-name
+
+Soumettez vos changements et créez une Pull Request vers le dépôt principal.
+
