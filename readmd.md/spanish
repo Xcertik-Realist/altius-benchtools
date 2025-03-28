@@ -1,0 +1,139 @@
+Altius Benchtools
+Esta es una colección de herramientas para la evaluación de Altius, que incluye un perfilador para el rastreo de ejecución del servidor RPC y un generador de transacciones para casos de prueba en Ethereum.
+Consejo: Comienza ejecutando el ejemplo en examples/how_to_use_profiler.rs para ver el perfilador en acción y entender sus diferentes patrones de uso.
+1. Perfilador (Profiler)
+Una herramienta para rastrear y perfilar la ejecución del servidor RPC con capacidades detalladas de temporización y seguimiento de eventos.
+Características
+Temporización de tareas con marcadores de inicio/fin
+
+Soporte para perfilado multi-hilo
+
+Anotación de eventos con notas y descripciones
+
+Formatos de salida JSON y ZIP
+
+Manejo especial para eventos de transacciones y commits
+
+Uso
+
+// Iniciar la temporización de una tarea
+profiler::start("task_name");
+
+// ... tu código aquí ...
+
+// Agregar notas a la tarea actual
+profiler::note_str("task_name", "key", "value");
+
+// ... tu código aquí ...
+
+// Finalizar la temporización de una tarea
+profiler::end("task_name");
+
+// Exportar resultados
+profiler::dump_json("output.json");
+// o
+profiler::dump_zip("output");
+
+Uso multi-hilo
+El perfilador soporta operaciones concurrentes en múltiples hilos:
+
+// En cualquier hilo
+profiler::start_multi("thread_task");
+
+// ... tu código aquí ...
+
+// En cualquier hilo
+profiler::note_str_multi("thread_task", "thread_info", "worker_1");
+
+// ... tu código aquí ...
+
+// En cualquier hilo
+profiler::end_multi("thread_task");
+
+// ... tu código aquí ...
+
+// Exportar resultados
+profiler::dump_json("output.json");
+// o
+profiler::dump_zip("output");
+
+Formato de salida
+El perfilador genera una estructura JSON que contiene:
+Información de temporización para cada tarea
+
+Identificación de hilos
+
+Anotaciones y notas personalizadas
+
+Detalles de eventos de transacciones y commits
+
+Ejemplo de JSON de salida:
+
+{
+  "details": [
+    {
+      "detail": {
+        "hash": "0x26b7c694ff75f0b4ee85b5ca2e3cc1c332b41a64982c2b454e0493497b8e76b9",
+        "type": "transaction"
+      },
+      "end": 212387237,
+      "runtime": 31286,
+      "start": 212355951,
+      "status": "success",
+      "tx": "125",
+      "type": "transaction"
+    },
+    // ...más contenido...
+  ],
+  [ "..." ]
+}
+
+2. Generador de Transacciones (Transaction Generator)
+Esta herramienta genera un archivo JSON con una lista de transacciones y un estado previo de la blockchain.
+Uso
+Ejecuta cargo build --release --features generator para construir el proyecto.
+
+Ejecuta ./target/release/generate --help para ver las opciones disponibles.
+
+Uso para transferencias ETH
+Después de construir el proyecto, puedes usar los siguientes comandos para generar casos de prueba:
+Generar un archivo JSON con 100 transacciones de transferencia ETH en 10 grupos, usando el patrón uno-a-muchos, y guardarlo en ./test-case.json:
+
+./target/release/generate pattern -y o2m -t 100 -g 10 -o ./test-case.json
+# o
+./target/release/generate pattern -y one-to-many -t 100 -g 10 -o ./test-case.json
+
+Formato de salida
+El archivo JSON de salida es una lista de transacciones y un estado previo de la blockchain. Ejemplo de JSON:
+
+{
+  "just-test": {
+    "_info": { "...": "..." },
+    "env": { "...": "..." },
+    "pre": {
+      "0xcc2564c36a3440e7d6dd4c67b50f885edbfa5141": {
+        "balance": "0x056bc75e2d63100000",
+        "code": "0x",
+        "nonce": "0x00",
+        "storage": {}
+      }
+    },
+    "transaction": [
+      // ...datos de transacciones...
+    ]
+  }
+}
+
+Cómo Contribuir
+¡Damos la bienvenida a las contribuciones al proyecto Altius Benchtools! Aquí te explicamos cómo participar:
+Reportar problemas: Revisa la página de Issues para ver si tu problema ya fue reportado; si no, crea un nuevo issue con una descripción clara y pasos para reproducirlo.
+
+Contribuir código:
+Haz un fork del repositorio en GitHub.
+
+Clona tu fork localmente: git clone https://github.com/YOUR-USERNAME/toolbench.git
+
+Crea una nueva rama: git checkout -b feature/your-feature-name
+
+Envía tus cambios y crea un Pull Request al repositorio principal.
+
