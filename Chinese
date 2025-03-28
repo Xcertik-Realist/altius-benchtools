@@ -1,0 +1,140 @@
+1. Mandarin Chinese (Simplified)
+Altius Benchtools
+这是一个用于 Altius 基准测试的工具集合，包括用于 RPC 服务器执行跟踪的分析器和用于以太坊测试用例的交易生成器。
+提示：从运行 examples/how_to_use_profiler.rs 中的示例开始，以查看分析器的实际操作并了解其不同的使用模式。
+1. 分析器 (Profiler)
+一个用于跟踪和分析 RPC 服务器执行的工具，具有详细的计时和事件跟踪功能。
+功能
+任务计时，带有开始/结束标记
+
+支持多线程分析
+
+事件注释，带有说明和描述
+
+JSON 和 ZIP 输出格式
+
+对交易和提交事件的特殊处理
+
+用法
+
+// 开始计时一个任务
+profiler::start("task_name");
+
+// ... 您的代码在此处 ...
+
+// 为当前任务添加注释
+profiler::note_str("task_name", "key", "value");
+
+// ... 您的代码在此处 ...
+
+// 结束计时一个任务
+profiler::end("task_name");
+
+// 导出结果
+profiler::dump_json("output.json");
+// 或
+profiler::dump_zip("output");
+
+多线程用法
+分析器支持跨多个线程的并发操作：
+
+// 在任意线程中
+profiler::start_multi("thread_task");
+
+// ... 您的代码在此处 ...
+
+// 在任意线程中
+profiler::note_str_multi("thread_task", "thread_info", "worker_1");
+
+// ... 您的代码在此处 ...
+
+// 在任意线程中
+profiler::end_multi("thread_task");
+
+// ... 您的代码在此处 ...
+
+// 导出结果
+profiler::dump_json("output.json");
+// 或
+profiler::dump_zip("output");
+
+输出格式
+分析器生成包含以下内容的 JSON 结构：
+每个任务的计时信息
+
+线程标识
+
+自定义注释和说明
+
+交易和提交事件的详细信息
+
+输出的 JSON 示例如下：
+
+{
+  "details": [
+    {
+      "detail": {
+        "hash": "0x26b7c694ff75f0b4ee85b5ca2e3cc1c332b41a64982c2b454e0493497b8e76b9",
+        "type": "transaction"
+      },
+      "end": 212387237,
+      "runtime": 31286,
+      "start": 212355951,
+      "status": "success",
+      "tx": "125",
+      "type": "transaction"
+    },
+    // ...更多内容...
+  ],
+  [ "..." ]
+}
+
+2. 交易生成器 (Transaction Generator)
+此工具生成一个包含交易列表和区块链预状态的 JSON 文件。
+用法
+运行 cargo build --release --features generator 来构建项目。
+
+运行 ./target/release/generate --help 查看可用选项。
+
+ETH 转账用法
+构建项目后，可以使用以下命令生成测试用例：
+生成一个包含 100 个 ETH 转账交易的 JSON 文件，分成 10 组，使用一对多模式，保存到 ./test-case.json：
+
+./target/release/generate pattern -y o2m -t 100 -g 10 -o ./test-case.json
+# 或
+./target/release/generate pattern -y one-to-many -t 100 -g 10 -o ./test-case.json
+
+输出格式
+输出 JSON 文件是一个交易列表和区块链的预状态。示例 JSON 如下：
+
+{
+  "just-test": {
+    "_info": { "...": "..." },
+    "env": { "...": "..." },
+    "pre": {
+      "0xcc2564c36a3440e7d6dd4c67b50f885edbfa5141": {
+        "balance": "0x056bc75e2d63100000",
+        "code": "0x",
+        "nonce": "0x00",
+        "storage": {}
+      }
+    },
+    "transaction": [
+      // ...交易数据...
+    ]
+  }
+}
+
+如何贡献
+我们欢迎对 Altius Benchtools 项目的贡献！以下是参与方式：
+报告问题：在 Issues 页面检查问题是否已报告；如果没有，请创建新问题并提供清晰的描述和重现步骤。
+
+贡献代码：
+在 GitHub 上 fork 仓库。
+
+本地克隆：git clone https://github.com/YOUR-USERNAME/toolbench.git
+
+创建新分支：git checkout -b feature/your-feature-name
+
+提交更改并推送至您的 fork，最后创建 Pull Request。
+
